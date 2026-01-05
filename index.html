@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>MarketSim – Paper Trading</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Lightweight Charts -->
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+  <style>
+    body { margin: 0; background: #050a13; color: #e5e7eb; font-family: Arial, sans-serif; }
+    header { padding: 12px; background: #0b1220; display: flex; justify-content: space-between; align-items: center; }
+    button { padding: 8px 12px; border: none; cursor: pointer; font-weight: bold; }
+    .buy { background: #14532d; color: white; }
+    .sell { background: #7f1d1d; color: white; }
+    main { display: grid; grid-template-columns: 3fr 1fr; gap: 10px; padding: 10px; }
+    #chart { height: 500px; }
+    .panel { border: 1px solid #1f2937; padding: 10px; }
+    .pos { font-size: 13px; margin-bottom: 6px; }
+  </style>
+</head>
+
+<body>
+<header>
+  <div><strong>MarketSim</strong> — BTC/USDT (tempo real)</div>
+  <div>Preço: <span id="price">---</span></div>
+</header>
+
+<main>
+  <div id="chart"></div>
+
+  <div class="panel">
+    <h3>Paper Trading</h3>
+
+    <div>
+      Quantidade:
+      <input id="qty" type="number" value="0.01" step="0.001" />
+    </div>
+
+    <br/>
+
+    <button class="buy" onclick="openPosition('BUY')">BUY</button>
+    <button class="sell" onclick="openPosition('SELL')">SELL</button>
+
+    <hr/>
+
+    <h4>Posições abertas</h4>
+    <div id="positions"></div>
+  </div>
+</main>
+
+<script>
+  const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+    layout: { background: { color: '#050a13' }, textColor: '#e5e7eb' },
+    grid: { vertLines: { color: '#111827' }, horzLines: { color: '#111827' } },
+    width: document.getElementById('chart').clientWidth,
+    height: 500
+  });
+
+  const series = chart.addCandlestickSeries();
+
+  let lastPrice = 0;
+  let positions = JSON.parse(localStorage.getItem('positions') || '[]');
+
+  function renderPositions() {
+    const el = document.getElementById('positions');
+    el.innerHTML = '';
+    positions.forEach(p => {
+      const pnl = ((lastPrice - p.entry) * p.qty * (p.side === 'BUY' ? 1 : -1)).toFixed(2);
+      el.innerHTML += `
+        <div class="pos">
+          ${p.side} ${p.qty} @ ${p.entry.toFixed(2)} | P&L: ${pnl}
+        </div>
+      `;
+    });
+  }
+
+  function openPosition(side) {
+    const qty = parseFloat(document.getElementById('qty').value);
+    if (!lastPrice || qty <= 0) return;
+
+    positions.push({ id: Date.now(), side, qty, entry: lastPrice });
+    localStorage.setItem('positions', JSON.stringify(positions));
+    renderPositions();
+  }
+
+  const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@kline_1m');
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    const k = msg.k;
+
+    const candle = {
+      time: k.t / 1000,
+      open: parseFloat(k.o),
+      high: parseFloat(k.h),
+      low: parseFloat(k.l),
+      close: parseFloat(k.c)
+    };
+
+    lastPrice = candle.close;
+    document.getElementById('price').innerText = lastPrice.toFixed(2);
+
+    series.update(candle);
+    renderPositions();
+  };
+</script>
+</body>
+</html>
