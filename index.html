@@ -2,109 +2,522 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>MarketSim – Paper Trading</title>
+  <title>MarketSim — Paper Trading Real-Time</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Lightweight Charts -->
   <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
   <style>
-    body { margin: 0; background: #050a13; color: #e5e7eb; font-family: Arial, sans-serif; }
-    header { padding: 12px; background: #0b1220; display: flex; justify-content: space-between; align-items: center; }
-    button { padding: 8px 12px; border: none; cursor: pointer; font-weight: bold; }
-    .buy { background: #14532d; color: white; }
-    .sell { background: #7f1d1d; color: white; }
-    main { display: grid; grid-template-columns: 3fr 1fr; gap: 10px; padding: 10px; }
-    #chart { height: 500px; }
-    .panel { border: 1px solid #1f2937; padding: 10px; }
-    .pos { font-size: 13px; margin-bottom: 6px; }
+    :root{
+      --bg:#050a13; --panel:#0b1220; --panel2:#070d18; --line:#1f2937;
+      --text:#e5e7eb; --muted:#9ca3af; --green:#22c55e; --red:#ef4444;
+      --green2:#14532d; --red2:#7f1d1d; --btn:#111827;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    header{
+      position:sticky;top:0;z-index:5;
+      background:rgba(11,18,32,.92);backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--line);
+      padding:10px 12px;
+      display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+    }
+    .brand{display:flex;gap:10px;align-items:center}
+    .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#111827,#0b2a13);display:flex;align-items:center;justify-content:center;font-weight:800}
+    .title{display:flex;flex-direction:column;line-height:1.05}
+    .title b{font-size:14px}
+    .title span{font-size:12px;color:var(--muted)}
+    .topStats{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{
+      border:1px solid var(--line);background:rgba(7,13,24,.55);
+      padding:6px 10px;border-radius:999px;font-size:12px;color:var(--muted);
+    }
+    .pill b{color:var(--text)}
+    .wrap{max-width:1200px;margin:0 auto;padding:12px}
+    .grid{display:grid;grid-template-columns:260px 1fr 320px;gap:12px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .cardHead{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .cardHead h3{margin:0;font-size:13px;color:var(--muted);font-weight:650}
+    .cardBody{padding:12px}
+    .btn{
+      background:var(--btn);border:1px solid var(--line);color:var(--text);
+      padding:9px 10px;border-radius:10px;cursor:pointer;font-weight:650;
+    }
+    .btn:active{transform:translateY(1px)}
+    .btnPrimary{border-color:#14532d;background:#0b2a13}
+    .btnDanger{border-color:#7f1d1d;background:#2a0b0b}
+    .btnGhost{background:transparent}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    select,input{
+      background:#070d18;border:1px solid var(--line);color:var(--text);
+      padding:9px 10px;border-radius:10px;outline:none;
+    }
+    input{width:120px}
+    .muted{color:var(--muted);font-size:12px}
+    #chart{height:560px}
+    .list{display:flex;flex-direction:column;gap:8px}
+    .sym{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(7,13,24,.35);
+      cursor:pointer;
+    }
+    .sym.active{outline:2px solid rgba(34,197,94,.35);border-color:#14532d}
+    .sym .left{display:flex;flex-direction:column}
+    .sym b{font-size:13px}
+    .sym span{font-size:12px;color:var(--muted)}
+    .sym .px{font-variant-numeric:tabular-nums;font-size:13px}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .kpi{
+      padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(7,13,24,.35);
+      display:flex;flex-direction:column;gap:2px;
+    }
+    .kpi .label{font-size:12px;color:var(--muted)}
+    .kpi .value{font-size:14px;font-variant-numeric:tabular-nums}
+    .posItem{
+      padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(7,13,24,.35);
+      display:flex;flex-direction:column;gap:6px;
+    }
+    .posTop{display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .badge{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+    .badge.buy{border-color:#14532d;color:#b7f7c8}
+    .badge.sell{border-color:#7f1d1d;color:#fecaca}
+    .mono{font-variant-numeric:tabular-nums}
+    .hr{height:1px;background:var(--line);margin:10px 0}
+    .table{width:100%;border-collapse:collapse;font-size:12px}
+    .table th,.table td{padding:8px;border-bottom:1px solid rgba(31,41,55,.7);text-align:left}
+    .table th{color:var(--muted);font-weight:650}
+    .right{text-align:right}
+    .posActions{display:flex;gap:8px;justify-content:flex-end}
+    .small{padding:7px 8px;border-radius:10px;font-size:12px}
+    @media (max-width: 1050px){
+      .grid{grid-template-columns:1fr}
+      #chart{height:440px}
+      input{width:100%}
+    }
   </style>
 </head>
 
 <body>
 <header>
-  <div><strong>MarketSim</strong> — BTC/USDT (tempo real)</div>
-  <div>Preço: <span id="price">---</span></div>
+  <div class="brand">
+    <div class="logo">MS</div>
+    <div class="title">
+      <b>MarketSim</b>
+      <span>Paper Trading • Dados reais (cripto) • Sem login</span>
+    </div>
+  </div>
+
+  <div class="topStats">
+    <div class="pill">Símbolo: <b id="topSymbol">BTC/USDT</b></div>
+    <div class="pill">Preço: <b id="topPrice">—</b></div>
+    <div class="pill">Saldo: <b id="topCash">10,000.00</b> USD</div>
+    <div class="pill">Equity: <b id="topEquity">—</b> USD</div>
+    <div class="pill">P&L total: <b id="topPnL">—</b> USD</div>
+  </div>
 </header>
 
-<main>
-  <div id="chart"></div>
+<div class="wrap">
+  <div class="grid">
 
-  <div class="panel">
-    <h3>Paper Trading</h3>
-
-    <div>
-      Quantidade:
-      <input id="qty" type="number" value="0.01" step="0.001" />
+    <!-- Watchlist -->
+    <div class="card">
+      <div class="cardHead">
+        <h3>Watchlist</h3>
+        <button class="btn btnGhost small" id="resetBtn">Reset</button>
+      </div>
+      <div class="cardBody">
+        <div class="list" id="watchlist"></div>
+        <div class="hr"></div>
+        <div class="muted">
+          Nota: Para manter grátis e em tempo real, começamos com cripto (Binance WebSocket).
+        </div>
+      </div>
     </div>
 
-    <br/>
+    <!-- Chart -->
+    <div class="card">
+      <div class="cardHead">
+        <h3>Gráfico</h3>
+        <div class="row">
+          <select id="tf">
+            <option value="1m">1m</option>
+            <option value="5m">5m</option>
+            <option value="15m">15m</option>
+            <option value="1h">1h</option>
+          </select>
+        </div>
+      </div>
+      <div class="cardBody" style="padding:0">
+        <div id="chart"></div>
+      </div>
+    </div>
 
-    <button class="buy" onclick="openPosition('BUY')">BUY</button>
-    <button class="sell" onclick="openPosition('SELL')">SELL</button>
+    <!-- Trading panel -->
+    <div class="card">
+      <div class="cardHead">
+        <h3>Trading</h3>
+        <span class="muted">Market + Fecho por posição</span>
+      </div>
+      <div class="cardBody">
 
-    <hr/>
+        <div class="split">
+          <div class="kpi">
+            <div class="label">Preço atual</div>
+            <div class="value mono" id="kpiPrice">—</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Posições abertas</div>
+            <div class="value mono" id="kpiPos">0</div>
+          </div>
+        </div>
 
-    <h4>Posições abertas</h4>
-    <div id="positions"></div>
+        <div class="hr"></div>
+
+        <div class="row" style="justify-content:space-between;align-items:flex-end">
+          <div style="flex:1">
+            <div class="muted">Quantidade</div>
+            <input id="qty" type="number" value="0.01" step="0.001" min="0" />
+          </div>
+          <div style="flex:1">
+            <div class="muted">Taxa (simulada)</div>
+            <div class="mono" id="feeInfo">0.05%</div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <button class="btn btnPrimary" style="flex:1" id="buyBtn">BUY</button>
+          <button class="btn btnDanger" style="flex:1" id="sellBtn">SELL</button>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="row" style="justify-content:space-between">
+          <h3 style="margin:0;font-size:13px;color:var(--muted);font-weight:650">Posições</h3>
+          <span class="muted">múltiplas entradas</span>
+        </div>
+
+        <div class="list" id="positions"></div>
+
+        <div class="hr"></div>
+
+        <h3 style="margin:0 0 8px 0;font-size:13px;color:var(--muted);font-weight:650">Histórico (últimos 10)</h3>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Hora</th><th>Symbol</th><th>Lado</th><th class="right">Qtd</th><th class="right">Entrada</th><th class="right">Saída</th><th class="right">P&L</th>
+            </tr>
+          </thead>
+          <tbody id="trades"></tbody>
+        </table>
+
+        <div class="hr"></div>
+        <div class="muted">
+          Aviso: simulação educativa (paper trading). Não é corretora, sem dinheiro real, sem aconselhamento financeiro.
+        </div>
+      </div>
+    </div>
+
   </div>
-</main>
+</div>
 
 <script>
-  const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-    layout: { background: { color: '#050a13' }, textColor: '#e5e7eb' },
-    grid: { vertLines: { color: '#111827' }, horzLines: { color: '#111827' } },
-    width: document.getElementById('chart').clientWidth,
-    height: 500
-  });
+  // ---------- State ----------
+  const LS_KEY = "marketsim_state_v2";
+  const feeRate = 0.0005; // 0.05% simulated fee
 
-  const series = chart.addCandlestickSeries();
+  const symbols = [
+    { id: "btcusdt", label: "BTC/USDT" },
+    { id: "ethusdt", label: "ETH/USDT" },
+    { id: "solusdt", label: "SOL/USDT" },
+    { id: "bnbusdt", label: "BNB/USDT" },
+  ];
 
-  let lastPrice = 0;
-  let positions = JSON.parse(localStorage.getItem('positions') || '[]');
+  let state = {
+    cash: 10000,
+    symbol: "btcusdt",
+    tf: "1m",
+    lastPrice: 0,
+    // positions: {id, symbol, side, qty, entry, openedAt}
+    positions: [],
+    // trades: {id, time, symbol, side, qty, entry, exit, pnl}
+    trades: []
+  };
 
-  function renderPositions() {
-    const el = document.getElementById('positions');
-    el.innerHTML = '';
-    positions.forEach(p => {
-      const pnl = ((lastPrice - p.entry) * p.qty * (p.side === 'BUY' ? 1 : -1)).toFixed(2);
-      el.innerHTML += `
-        <div class="pos">
-          ${p.side} ${p.qty} @ ${p.entry.toFixed(2)} | P&L: ${pnl}
+  function load() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) state = { ...state, ...JSON.parse(raw) };
+    } catch {}
+  }
+  function save() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
+  }
+
+  load();
+
+  // ---------- UI helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => (Number.isFinite(n) ? n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : "—");
+  const nowHHMM = () => new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+
+  function updateTop() {
+    $("topSymbol").textContent = symbols.find(s=>s.id===state.symbol)?.label ?? state.symbol.toUpperCase();
+    $("topPrice").textContent = state.lastPrice ? fmt(state.lastPrice) : "—";
+    $("topCash").textContent = fmt(state.cash);
+
+    const pnlTotal = calcPnLTotal();
+    const equity = state.cash + pnlTotal;
+    $("topPnL").textContent = fmt(pnlTotal);
+    $("topEquity").textContent = fmt(equity);
+
+    $("kpiPrice").textContent = state.lastPrice ? fmt(state.lastPrice) : "—";
+    $("kpiPos").textContent = String(state.positions.filter(p=>p.symbol===state.symbol).length);
+  }
+
+  function calcPnL(pos){
+    if (!state.lastPrice) return 0;
+    const dir = pos.side === "BUY" ? 1 : -1;
+    return (state.lastPrice - pos.entry) * pos.qty * dir;
+  }
+  function calcPnLTotal(){
+    return state.positions.reduce((acc,p)=>acc + calcPnL(p), 0);
+  }
+
+  function renderWatchlist(prices = {}) {
+    const wrap = $("watchlist");
+    wrap.innerHTML = "";
+    symbols.forEach(s => {
+      const active = s.id === state.symbol ? "active" : "";
+      const px = prices[s.id] ?? (s.id===state.symbol ? state.lastPrice : 0);
+      const div = document.createElement("div");
+      div.className = `sym ${active}`;
+      div.innerHTML = `
+        <div class="left">
+          <b>${s.label}</b>
+          <span>${s.id.toUpperCase()}</span>
         </div>
+        <div class="px mono">${px ? fmt(px) : "—"}</div>
+      `;
+      div.onclick = () => {
+        state.symbol = s.id;
+        save();
+        connectWS();
+        renderWatchlist(prices);
+        renderPositions();
+        updateTop();
+      };
+      wrap.appendChild(div);
+    });
+  }
+
+  function renderPositions(){
+    const wrap = $("positions");
+    wrap.innerHTML = "";
+    const list = state.positions.filter(p=>p.symbol===state.symbol).sort((a,b)=>b.openedAt-a.openedAt);
+    if (!list.length) {
+      wrap.innerHTML = `<div class="muted">Sem posições para este símbolo.</div>`;
+      return;
+    }
+    list.forEach(p => {
+      const pnl = calcPnL(p);
+      const pnlStr = fmt(pnl);
+      const badgeClass = p.side === "BUY" ? "buy" : "sell";
+
+      const el = document.createElement("div");
+      el.className = "posItem";
+      el.innerHTML = `
+        <div class="posTop">
+          <span class="badge ${badgeClass}">${p.side}</span>
+          <span class="muted mono">${new Date(p.openedAt).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <div class="muted">Qtd</div><div class="mono">${p.qty}</div>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <div class="muted">Entrada</div><div class="mono">${fmt(p.entry)}</div>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <div class="muted">P&L</div><div class="mono" style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnlStr}</div>
+        </div>
+        <div class="posActions">
+          <button class="btn small" data-close="${p.id}">Fechar</button>
+        </div>
+      `;
+      wrap.appendChild(el);
+    });
+
+    // bind close
+    wrap.querySelectorAll("[data-close]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = Number(btn.getAttribute("data-close"));
+        closePosition(id);
+      });
+    });
+  }
+
+  function renderTrades(){
+    const body = $("trades");
+    body.innerHTML = "";
+    const rows = state.trades.slice(0,10);
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="7" class="muted">Sem histórico ainda.</td></tr>`;
+      return;
+    }
+    rows.forEach(t=>{
+      body.innerHTML += `
+        <tr>
+          <td>${t.time}</td>
+          <td>${(symbols.find(s=>s.id===t.symbol)?.label ?? t.symbol).toUpperCase()}</td>
+          <td>${t.side}</td>
+          <td class="right mono">${t.qty}</td>
+          <td class="right mono">${fmt(t.entry)}</td>
+          <td class="right mono">${fmt(t.exit)}</td>
+          <td class="right mono" style="color:${t.pnl>=0?'var(--green)':'var(--red)'}">${fmt(t.pnl)}</td>
+        </tr>
       `;
     });
   }
 
-  function openPosition(side) {
-    const qty = parseFloat(document.getElementById('qty').value);
-    if (!lastPrice || qty <= 0) return;
-
-    positions.push({ id: Date.now(), side, qty, entry: lastPrice });
-    localStorage.setItem('positions', JSON.stringify(positions));
+  function resetAll(){
+    state = { cash: 10000, symbol: "btcusdt", tf: "1m", lastPrice: 0, positions: [], trades: [] };
+    save();
+    connectWS();
+    renderWatchlist({});
     renderPositions();
+    renderTrades();
+    updateTop();
   }
 
-  const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@kline_1m');
+  // ---------- Trading ----------
+  function openPosition(side){
+    const qty = Number($("qty").value);
+    if (!state.lastPrice || !Number.isFinite(qty) || qty <= 0) return;
 
-  ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-    const k = msg.k;
+    // fee on open
+    const notional = state.lastPrice * qty;
+    const fee = notional * feeRate;
+    state.cash -= fee;
 
-    const candle = {
-      time: k.t / 1000,
-      open: parseFloat(k.o),
-      high: parseFloat(k.h),
-      low: parseFloat(k.l),
-      close: parseFloat(k.c)
+    const pos = {
+      id: Date.now() + Math.floor(Math.random()*1000),
+      symbol: state.symbol,
+      side,
+      qty,
+      entry: state.lastPrice,
+      openedAt: Date.now()
+    };
+    state.positions.unshift(pos);
+    save();
+    renderPositions();
+    updateTop();
+  }
+
+  function closePosition(id){
+    const idx = state.positions.findIndex(p=>p.id===id);
+    if (idx < 0) return;
+    const p = state.positions[idx];
+
+    const pnl = calcPnL(p);
+
+    // fee on close (using lastPrice)
+    const notional = state.lastPrice * p.qty;
+    const fee = notional * feeRate;
+
+    state.cash += pnl;
+    state.cash -= fee;
+
+    state.positions.splice(idx,1);
+    state.trades.unshift({
+      id: Date.now(),
+      time: nowHHMM(),
+      symbol: p.symbol,
+      side: p.side,
+      qty: p.qty,
+      entry: p.entry,
+      exit: state.lastPrice,
+      pnl: pnl - fee // show after close fee
+    });
+
+    save();
+    renderPositions();
+    renderTrades();
+    updateTop();
+  }
+
+  // ---------- Chart ----------
+  const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+    layout: { background: { color: '#050a13' }, textColor: '#e5e7eb' },
+    grid: { vertLines: { color: '#111827' }, horzLines: { color: '#111827' } },
+    rightPriceScale: { borderColor: '#1f2937' },
+    timeScale: { borderColor: '#1f2937' },
+    crosshair: { mode: 1 },
+    width: document.getElementById('chart').clientWidth,
+    height: document.getElementById('chart').clientHeight
+  });
+
+  const series = chart.addCandlestickSeries({
+    upColor: '#22c55e', downColor: '#ef4444',
+    borderUpColor: '#22c55e', borderDownColor: '#ef4444',
+    wickUpColor: '#22c55e', wickDownColor: '#ef4444'
+  });
+
+  window.addEventListener("resize", ()=>{
+    chart.applyOptions({ width: document.getElementById('chart').clientWidth });
+  });
+
+  // ---------- WebSocket ----------
+  let ws = null;
+  const lastPrices = {}; // for watchlist display (approx)
+  function connectWS(){
+    if (ws) try { ws.close(); } catch {}
+    const stream = `${state.symbol}@kline_${state.tf}`;
+    ws = new WebSocket(`wss://stream.binance.com:9443/ws/${stream}`);
+    $("topPrice").textContent = "—";
+    $("kpiPrice").textContent = "—";
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      const k = msg.k;
+
+      const candle = {
+        time: k.t / 1000,
+        open: parseFloat(k.o),
+        high: parseFloat(k.h),
+        low: parseFloat(k.l),
+        close: parseFloat(k.c)
+      };
+
+      state.lastPrice = candle.close;
+      lastPrices[state.symbol] = candle.close;
+      series.update(candle);
+
+      updateTop();
+      renderPositions();
+      renderWatchlist(lastPrices);
     };
 
-    lastPrice = candle.close;
-    document.getElementById('price').innerText = lastPrice.toFixed(2);
+    ws.onerror = () => {};
+    ws.onclose = () => {};
+  }
 
-    series.update(candle);
-    renderPositions();
-  };
+  // ---------- Bind UI ----------
+  $("tf").value = state.tf;
+  $("tf").addEventListener("change", (e)=>{
+    state.tf = e.target.value;
+    save();
+    connectWS();
+  });
+
+  $("buyBtn").addEventListener("click", ()=>openPosition("BUY"));
+  $("sellBtn").addEventListener("click", ()=>openPosition("SELL"));
+  $("resetBtn").addEventListener("click", resetAll);
+
+  // ---------- Init ----------
+  renderWatchlist(lastPrices);
+  renderPositions();
+  renderTrades();
+  updateTop();
+  connectWS();
 </script>
 </body>
 </html>
